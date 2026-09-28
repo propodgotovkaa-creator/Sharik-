@@ -11,24 +11,19 @@
     background:#eaf6fb;
   }
   * { box-sizing:border-box; }
-
-  body {
+  html,body {
+    width:100%;
+    height:100%;
     margin:0;
-    min-height:100dvh;
-    display:grid;
-    place-items:center;
-    padding:12px;
+    overflow:hidden;
   }
-
   .game {
     position:relative;
-    width:min(100%,1100px);
-    aspect-ratio:16/9;
-    min-height:460px;
+    width:100vw;
+    height:100vh;
+    height:100dvh;
     overflow:hidden;
-    border-radius:28px;
     background:#bdeaff url("fon.png") center/cover no-repeat;
-    box-shadow:0 16px 48px #4e8ba538;
     user-select:none;
     touch-action:manipulation;
   }
@@ -63,8 +58,8 @@
   #balloon {
     position:absolute;
     z-index:3;
-    width:clamp(145px,22%,225px);
-    height:clamp(205px,38%,280px);
+    width:clamp(145px,19vw,315px);
+    height:clamp(205px,40vh,410px);
     left:50%;
     top:0;
     transform:translate(-50%,-110%);
@@ -171,10 +166,6 @@
   .hint.show { opacity:1; }
 
   @media(max-width:600px) {
-    .game {
-      min-height:540px;
-      aspect-ratio:3/4;
-    }
     #balloon {
       width:180px;
       height:235px;
@@ -295,7 +286,7 @@
     x = (index % 3 - 1) * Math.min(90, game.clientWidth * .09);
     y = -balloonHeight() - 30;
     vx = 0;
-    vy = 35;
+    vy = 28;
     angle = 0;
     spin = 0;
     phase = 'fall';
@@ -319,11 +310,11 @@
     lastTime = time;
 
     if (phase === 'fall' || phase === 'bounce' || phase === 'fly') {
-      // После удара боковое движение постепенно затухает.
+      // Боковое движение постепенно затухает.
       x += vx * dt;
       vx *= Math.exp(-1.8 * dt);
 
-      // Поворот сменяется мягким покачиванием.
+      // Шарик поворачивается и мягко выравнивается.
       spin += (-angle * 17 - spin * 5.5) * dt;
       angle += spin * dt;
 
@@ -347,12 +338,12 @@
           beginCard();
         }
       } else {
-        vy = Math.min(vy + 330 * dt, 125);
+        vy = Math.min(vy + 270 * dt, 105);
         y += vy * dt;
 
         if (y >= floor()) {
           y = floor();
-          vy = -88;
+          vy = -72;
           if (taps === 0) showHint('Назови картинку по слогам');
         }
 
@@ -376,22 +367,27 @@
     if (now - lastTap < 210) return;
     lastTap = now;
 
-    // Нажатие слева толкает шарик вправо и наоборот.
     const rect = balloon.getBoundingClientRect();
+
+    // Нажатие на верх шарика даёт только толчок вверх.
+    const topHit = event && event.clientY != null
+      && event.clientY < rect.top + rect.height * .38;
+
+    // Нажатие сбоку уводит шарик в противоположную сторону.
     const side = event && event.clientX != null
       ? Math.sign(rect.left + rect.width / 2 - event.clientX)
         || (index % 2 ? 1 : -1)
       : (index % 2 ? 1 : -1);
 
-    vx = side * (110 + Math.random() * 25);
-    spin = -side * (115 + Math.random() * 25);
+    vx = topHit ? vx * .35 : side * (110 + Math.random() * 25);
+    spin = topHit ? side * 35 : -side * (115 + Math.random() * 25);
 
     taps++;
     dots[taps - 1].classList.add('on');
 
     if (taps === 1) {
       phase = 'bounce';
-      vy = -245;
+      vy = topHit ? -205 : -230;
       showHint('Ещё один слог!');
     } else {
       phase = 'fly';
