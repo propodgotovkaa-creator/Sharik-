@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Шарики и слоги - 4-й класс</title>
+<style>
+  :root { font-family: 'Trebuchet MS', Arial, sans-serif; color:#394861; background:#eaf6fb; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100dvh; display:grid; place-items:center; padding:12px; }
+  .game { position:relative; width:min(100%,1100px); aspect-ratio:16/9; min-height:460px; overflow:hidden; border-radius:28px; background:linear-gradient(#bdeaff 0%,#e7f8ff 72%,#f2fbff); box-shadow:0 16px 48px #4e8ba538; user-select:none; touch-action:manipulation; }
+  .game.playing { cursor:pointer; }
+  .sun { position:absolute; top:9%; right:11%; width:9%; aspect-ratio:1; border-radius:50%; background:#ffe59a; box-shadow:0 0 0 14px #fff0bf77, 0 0 0 30px #fff0bf33; }
+  .cloud { position:absolute; width:125px; height:35px; border-radius:50px; background:#fff; opacity:.75; box-shadow:30px -16px 0 0 #fff,65px -7px 0 4px #fff; }
+  .cloud.one { left:8%; top:16%; transform:scale(.78); }
+  .cloud.two { right:18%; top:36%; transform:scale(.55); opacity:.5; }
+  .ground { position:absolute; inset:auto 0 0; height:10%; border-radius:50% 50% 0 0 / 30% 30% 0 0; background:#a9dcb9; }
+  .ground:before { content:''; position:absolute; inset:35% 0 0; background:#94d2a8; }
+  header { position:absolute; z-index:5; left:4%; top:4%; right:4%; display:flex; justify-content:space-between; align-items:flex-start; gap:12px; pointer-events:none; }
+  .title { font-weight:900; font-size:clamp(18px,2.7vw,31px); color:#426c83; text-shadow:0 2px #fff8; }
+  .score { padding:9px 17px; border-radius:25px; background:#ffffffcf; font-size:clamp(14px,1.8vw,20px); font-weight:bold; }
+  #balloon { position:absolute; z-index:3; width:clamp(145px,22%,225px); height:clamp(205px,38%,280px); left:50%; top:0; transform:translate(-50%,-110%); display:none; cursor:pointer; -webkit-tap-highlight-color:transparent; }
+  .envelope { position:absolute; width:100%; height:78%; inset:0 0 auto; border-radius:51% 51% 47% 47%; background:radial-gradient(ellipse at 32% 23%,#fff9 0%,transparent 35%), var(--balloon-color,#ff9d9d); box-shadow:inset -17px -10px 0 #00000012, 0 9px 16px #5f8ca72b; display:grid; place-items:center; }
+  .envelope:after { content:''; position:absolute; bottom:-11px; left:calc(50% - 9px); border:9px solid transparent; border-bottom:0; border-top:16px solid var(--balloon-color,#ff9d9d); }
+  .picture { width:68%; aspect-ratio:1; display:grid; place-items:center; border-radius:50%; background:#fffdf1; border:4px solid #ffffffba; font-size:clamp(58px,8vw,92px); line-height:1; filter:drop-shadow(0 3px 2px #0002); }
+  .string { position:absolute; top:81%; left:49%; height:18%; width:2px; background:#8f8b80; border-radius:50%; transform:rotate(8deg); }
+  .syllables { position:absolute; z-index:4; left:50%; bottom:5%; transform:translateX(-50%); display:flex; gap:12px; pointer-events:none; }
+  .dot { width:clamp(14px,2vw,22px); aspect-ratio:1; border-radius:50%; background:#fff; box-shadow:0 2px 7px #477e9955; opacity:.78; transition:background .2s,transform .2s; }
+  .dot.on { background:#ffbd66; transform:scale(1.25); opacity:1; }
+  .overlay { position:absolute; z-index:10; inset:0; display:grid; place-items:center; padding:20px; background:#e9f8ff9c; backdrop-filter:blur(3px); text-align:center; }
+  .overlay[hidden] { display:none; }
+  .panel { width:min(90%,510px); background:#fffdf6; padding:clamp(22px,4vw,40px); border-radius:32px; box-shadow:0 12px 36px #5484a34b; border:3px solid white; }
+  h1 { margin:0 0 12px; font-size:clamp(27px,4vw,43px); color:#527a8e; }
+  p { font-size:clamp(16px,2.1vw,22px); line-height:1.42; margin:0 0 25px; }
+  button { font:inherit; font-size:clamp(19px,2.5vw,26px); font-weight:800; border:0; background:#ffbf74; color:#664c3a; border-radius:100px; padding:13px 38px; box-shadow:0 6px 0 #de9a53; cursor:pointer; }
+  button:active { transform:translateY(4px); box-shadow:0 2px 0 #de9a53; }
+  .hint { position:absolute; z-index:5; top:14%; left:50%; transform:translateX(-50%); background:#ffffffd9; padding:7px 16px; border-radius:20px; font-size:clamp(15px,2vw,21px); white-space:nowrap; pointer-events:none; opacity:0; transition:opacity .3s; }
+  .hint.show { opacity:1; }
+  @media(max-width:600px) {
+    .game { min-height:540px; aspect-ratio:3/4; }
+    #balloon { width:180px; height:235px; }
+    .picture { font-size:78px; }
+    .cloud.two { display:none; }
+  }
+</style>
+</head>
+<body>
+<main id="game" class="game" aria-label="Игра Шарики и слоги">
+  <div class="sun"></div>
+  <div class="cloud one"></div>
+  <div class="cloud two"></div>
+  <div class="ground"></div>
+
+  <header>
+    <div class="title">Шарики и слоги</div>
+    <div id="score" class="score">0 / 8</div>
+  </header>
+
+  <div id="hint" class="hint" aria-live="polite"></div>
+
+  <div id="balloon" role="button" tabindex="0" aria-label="Нажми на шарик">
+    <div class="envelope">
+      <div id="picture" class="picture" aria-hidden="true"></div>
+    </div>
+    <div class="string"></div>
+  </div>
+
+  <div class="syllables" aria-hidden="true">
+    <div id="dot1" class="dot"></div>
+    <div id="dot2" class="dot"></div>
+  </div>
+
+  <div id="overlay" class="overlay">
+    <section class="panel">
+      <h1 id="panelTitle">Шарики и слоги</h1>
+      <p id="panelText">Назови картинку по слогам. Нажми на шарик один раз на каждый слог. После двух нажатий он улетит!</p>
+      <button id="start">Старт</button>
+    </section>
+  </div>
+</main>
+
+<script>
+(() => {
+  // Временные значки. Позже заменим их иллюстрациями.
+  const cards = [
+    {word:'петух', icon:'🐓', color:'#ffab91'},
+    {word:'лимон', icon:'🍋', color:'#ffd77b'},
+    {word:'банан', icon:'🍌', color:'#ffe186'},
+    {word:'веник', icon:'🧹', color:'#bdc6f3'},
+    {word:'пакет', icon:'🛍️', color:'#f2aad1'},
+    {word:'туман', icon:'🌫️', color:'#a9cce2'},
+    {word:'каток', icon:'⛸️', color:'#a5d9df'},
+    {word:'венок', icon:'💐', color:'#bbdfab'}
+  ];
+
+  const game = document.querySelector('#game');
+  const balloon = document.querySelector('#balloon');
+  const picture = document.querySelector('#picture');
+  const overlay = document.querySelector('#overlay');
+  const start = document.querySelector('#start');
+  const score = document.querySelector('#score');
+  const hint = document.querySelector('#hint');
+  const dots = [document.querySelector('#dot1'), document.querySelector('#dot2')];
+
+  let index = 0;
+  let taps = 0;
+  let phase = 'menu';
+  let y = 0;
+  let velocity = 0;
+  let lastTime = 0;
+  let raf = 0;
+  let lastTap = 0;
+  let hintTimer = 0;
+
+  const height = () => game.clientHeight;
+  const balloonHeight = () => balloon.getBoundingClientRect().height;
+  const ceiling = () => Math.max(40, height() * .14);
+  const floor = () => height() - balloonHeight() * .82 - height() * .10;
+
+  function paint() {
+    balloon.style.transform = `translate(-50%, ${y}px)`;
+  }
+
+  function showHint(message) {
+    hint.textContent = message;
+    hint.classList.add('show');
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => hint.classList.remove('show'), 1550);
+  }
+
+  function beginCard() {
+    if (index >= cards.length) {
+      finish();
+      return;
+    }
+
+    taps = 0;
+    dots.forEach(dot => dot.classList.remove('on'));
+
+    const card = cards[index];
+    picture.textContent = card.icon;
+    balloon.style.setProperty('--balloon-color', card.color);
+    balloon.setAttribute('aria-label', `Картинка: ${card.word}. Нажми два раза по слогам`);
+    balloon.style.display = 'block';
+
+    y = -balloonHeight() - 30;
+    velocity = 0;
+    phase = 'fall';
+    paint();
+  }
+
+  function finish() {
+    phase = 'done';
+    game.classList.remove('playing');
+    balloon.style.display = 'none';
+    document.querySelector('#panelTitle').textContent = 'Отлично!';
+    document.querySelector('#panelText').textContent = 'Все шарики улетели. Поиграем ещё?';
+    start.textContent = 'Играть снова';
+    overlay.hidden = false;
+  }
+
+  function tick(time) {
+    if (!lastTime) lastTime = time;
+    const dt = Math.min((time - lastTime) / 1000, .05);
+    lastTime = time;
+
+    if (phase === 'fall' || phase === 'bounce') {
+      velocity = Math.min(velocity + 310 * dt, 125);
+      y += velocity * dt;
+
+      if (y >= floor()) {
+        y = floor();
+        velocity = -105;
+        if (taps === 0) showHint('Назови картинку по слогам');
+      }
+
+      if (y < ceiling() && velocity < 0) {
+        y = ceiling();
+        velocity = 20;
+      }
+
+      paint();
+    } else if (phase === 'fly') {
+      velocity = Math.max(velocity - 420 * dt, -520);
+      y += velocity * dt;
+      paint();
+
+      if (y < -balloonHeight() - 35) {
+        index++;
+        score.textContent = `${index} / ${cards.length}`;
+        beginCard();
+      }
+    }
+
+    raf = requestAnimationFrame(tick);
+  }
+
+  function tap(event) {
+    if (event) event.preventDefault();
+    if (phase !== 'fall' && phase !== 'bounce') return;
+
+    const now = performance.now();
+    if (now - lastTap < 200) return;
+    lastTap = now;
+
+    taps++;
+    dots[taps - 1].classList.add('on');
+
+    if (taps === 1) {
+      phase = 'bounce';
+      velocity = -165;
+      showHint('Ещё один слог!');
+    } else {
+      phase = 'fly';
+      velocity = -160;
+      hint.classList.remove('show');
+    }
+  }
+
+  balloon.addEventListener('pointerdown', tap);
+  balloon.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') tap(event);
+  });
+
+  start.addEventListener('click', () => {
+    cancelAnimationFrame(raf);
+    lastTime = 0;
+    lastTap = 0;
+    index = 0;
+    score.textContent = `0 / ${cards.length}`;
+    overlay.hidden = true;
+    game.classList.add('playing');
+    beginCard();
+    raf = requestAnimationFrame(tick);
+  });
+})();
+</script>
+</body>
+</html>
