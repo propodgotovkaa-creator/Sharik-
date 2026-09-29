@@ -29,32 +29,6 @@
   }
   .game.playing { cursor:pointer; }
 
-  header {
-    position:absolute;
-    z-index:5;
-    left:4%;
-    top:4%;
-    right:4%;
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-start;
-    gap:12px;
-    pointer-events:none;
-  }
-  .title {
-    font-weight:900;
-    font-size:clamp(18px,2.7vw,31px);
-    color:#426c83;
-    text-shadow:0 2px #fff8;
-  }
-  .score {
-    padding:9px 17px;
-    border-radius:25px;
-    background:#ffffffcf;
-    font-size:clamp(14px,1.8vw,20px);
-    font-weight:bold;
-  }
-
   #balloon {
     position:absolute;
     z-index:3;
@@ -175,11 +149,6 @@
 </head>
 <body>
 <main id="game" class="game" aria-label="Игра Шарики и слоги">
-  <header>
-    <div class="title">Шарики и слоги</div>
-    <div id="score" class="score">0 / 11</div>
-  </header>
-
   <div id="hint" class="hint" aria-live="polite"></div>
 
   <div id="balloon" role="button" tabindex="0" aria-label="Нажми на шарик">
@@ -224,7 +193,6 @@
   const picture = document.querySelector('#picture');
   const overlay = document.querySelector('#overlay');
   const start = document.querySelector('#start');
-  const score = document.querySelector('#score');
   const hint = document.querySelector('#hint');
   const dots = [
     document.querySelector('#dot1'),
@@ -249,9 +217,11 @@
 
   const height = () => game.clientHeight;
   const balloonHeight = () => balloon.offsetHeight;
-  const ceiling = () => Math.max(40, height() * .14);
   const floor = () =>
     height() - balloonHeight() * .82 - height() * .10;
+
+  // Позиции шариков: центр, немного левее и немного правее.
+  const lanes = [.50,.32,.68,.25,.75,.42,.60,.29,.71,.38,.63];
 
   function paint() {
     balloon.style.left = `calc(50% + ${x}px)`;
@@ -283,7 +253,12 @@
     );
     balloon.style.display = 'block';
 
-    x = (index % 3 - 1) * Math.min(90, game.clientWidth * .09);
+    const limit = (game.clientWidth - balloon.offsetWidth) * .48;
+    x = Math.max(
+      -limit,
+      Math.min(limit, (lanes[index] - .5) * game.clientWidth)
+    );
+
     y = -balloonHeight() - 30;
     vx = 0;
     vy = 28;
@@ -310,11 +285,10 @@
     lastTime = time;
 
     if (phase === 'fall' || phase === 'bounce' || phase === 'fly') {
-      // Боковое движение постепенно затухает.
       x += vx * dt;
       vx *= Math.exp(-1.8 * dt);
 
-      // Шарик поворачивается и мягко выравнивается.
+      // Поворот после удара постепенно затухает.
       spin += (-angle * 17 - spin * 5.5) * dt;
       angle += spin * dt;
 
@@ -334,7 +308,6 @@
 
         if (y < -balloonHeight() - 35) {
           index++;
-          score.textContent = `${index} / ${cards.length}`;
           beginCard();
         }
       } else {
@@ -344,13 +317,13 @@
         if (y >= floor()) {
           y = floor();
           vy = -72;
-          if (taps === 0) showHint('Назови картинку по слогам');
+          if (taps === 0) {
+            showHint('Назови картинку по слогам');
+          }
         }
 
-        if (y < ceiling() && vy < 0) {
-          y = ceiling();
-          vy = 15;
-        }
+        // Сверху шарик не разворачиваем вниз.
+        // После удара он доходит до вершины дуги естественно.
       }
 
       paint();
@@ -369,16 +342,16 @@
 
     const rect = balloon.getBoundingClientRect();
 
-    // Нажатие на верх шарика даёт только толчок вверх.
     const topHit = event && event.clientY != null
       && event.clientY < rect.top + rect.height * .38;
 
-    // Нажатие сбоку уводит шарик в противоположную сторону.
     const side = event && event.clientX != null
       ? Math.sign(rect.left + rect.width / 2 - event.clientX)
         || (index % 2 ? 1 : -1)
       : (index % 2 ? 1 : -1);
 
+    // При ударе сверху почти нет движения вбок.
+    // При ударе сбоку шарик отлетает в противоположную сторону.
     vx = topHit ? vx * .35 : side * (110 + Math.random() * 25);
     spin = topHit ? side * 35 : -side * (115 + Math.random() * 25);
 
@@ -387,7 +360,9 @@
 
     if (taps === 1) {
       phase = 'bounce';
-      vy = topHit ? -205 : -230;
+      vy = topHit ? -245 : -230;
+      y -= 5;
+      paint();
       showHint('Ещё один слог!');
     } else {
       phase = 'fly';
@@ -406,7 +381,6 @@
     lastTime = 0;
     lastTap = 0;
     index = 0;
-    score.textContent = `0 / ${cards.length}`;
     overlay.hidden = true;
     game.classList.add('playing');
     beginCard();
