@@ -164,8 +164,8 @@
     <section class="panel">
       <h1 id="panelTitle">Шарики и слоги</h1>
       <p id="panelText">
-        Назови картинку по слогам. Нажми на шарик один раз на каждый слог.
-        После двух нажатий он улетит!
+        Отбивай воздушные шарики. Произнеси слово по слогам
+        (один удар - один слог) или скажи его 2 раза.
       </p>
       <button id="start">Старт</button>
     </section>
@@ -220,7 +220,6 @@
   const floor = () =>
     height() - balloonHeight() * .82 - height() * .10;
 
-  // Позиции шариков: центр, немного левее и немного правее.
   const lanes = [.50,.32,.68,.25,.75,.42,.60,.29,.71,.38,.63];
 
   function paint() {
@@ -288,7 +287,6 @@
       x += vx * dt;
       vx *= Math.exp(-1.8 * dt);
 
-      // Поворот после удара постепенно затухает.
       spin += (-angle * 17 - spin * 5.5) * dt;
       angle += spin * dt;
 
@@ -321,9 +319,6 @@
             showHint('Назови картинку по слогам');
           }
         }
-
-        // Сверху шарик не разворачиваем вниз.
-        // После удара он доходит до вершины дуги естественно.
       }
 
       paint();
@@ -341,7 +336,6 @@
     lastTap = now;
 
     const rect = balloon.getBoundingClientRect();
-
     const topHit = event && event.clientY != null
       && event.clientY < rect.top + rect.height * .38;
 
@@ -350,8 +344,6 @@
         || (index % 2 ? 1 : -1)
       : (index % 2 ? 1 : -1);
 
-    // При ударе сверху почти нет движения вбок.
-    // При ударе сбоку шарик отлетает в противоположную сторону.
     vx = topHit ? vx * .35 : side * (110 + Math.random() * 25);
     spin = topHit ? side * 35 : -side * (115 + Math.random() * 25);
 
@@ -363,7 +355,8 @@
       vy = topHit ? -245 : -230;
       y -= 5;
       paint();
-      showHint('Ещё один слог!');
+      clearTimeout(hintTimer);
+      hint.classList.remove('show');
     } else {
       phase = 'fly';
       vy = -295;
